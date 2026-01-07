@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: ./docker/php
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    # Mapping port dinonaktifkan karena akses dilakukan melalui Nginx
+    # ports:
+    #   - "8080:80"
+    #   - "8081:80"
+    #   - "8082:80"
+    
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mykisah_net
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: cinema_booking
+      MYSQL_ROOT_PASSWORD: root
+      # Kredensial user opsional (tidak digunakan)
+      # MYSQL_USER: cinema_user
+      # MYSQL_PASSWORD: cinema_pass
+
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mykisah_net
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:80"   
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+    networks:
+      - mykisah_net
+
+networks:
+  mykisah_net:
+
+volumes:
+  db_data:
